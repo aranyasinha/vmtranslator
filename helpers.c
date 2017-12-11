@@ -10,13 +10,13 @@ int label_n = 0;
 int type_of(char *arg1, char *arg2, char *arg3)
 {
 
-  if(arg2 == NULL && arg3 == NULL)
+  if(strcmp(arg2,"") == 0 && strcmp(arg3, "") == 0)
     return 0;
   else if(strcmp(arg1, "push") == 0)
     return 1;
   else if(strcmp(arg1, "pop") == 0)
     return 2;
-  else return -1;
+  return -1;
 
 }
 
@@ -97,23 +97,34 @@ char *set_register(int t, char *arg3)
 
 void code_generator(char *command, char *vm_filename)
 {
-  char command_copy[strlen(command) + 1];
-  strcpy(command_copy, command);
-  //Getting the three arguments from the commands
-  char *arg1, *arg2, *arg3, *save_ptr;
-  arg1 = strtok_r(command_copy, "\n ", &save_ptr);
-  arg2 = strtok_r(NULL, " ", &save_ptr);
-  arg3 = strtok_r(NULL, "\n ", &save_ptr);
+  //Getting the three arguments from the vm command
+  char args[3][10];
+  strcpy(args[0], "");
+  strcpy(args[1], "");
+  strcpy(args[2], "");
 
-  //Determines the type of vm command
-  int t = type_of(arg1, arg2, arg3);
+  int j = 0, cnt = 0;
+  for(int i = 0; i <= (int)strlen(command); i++)
+  {
+    if(command[i] == ' '|| command[i] == '\n')
+    {
+      args[cnt][j] = '\0';
+      if(command[i] == '\n')
+        break;
+      cnt++;
+      j = 0;
+    }
+    else args[cnt][j++] = command[i];
+  }
+  //Determining the type of vm command
+  int t = type_of(args[0], args[1], args[2]);
   if(t == -1)
   {
     printf("Invalid command type.\n");
     return;
   }
 
-  //Initializing the string which will hold the asm code that will be generated
+  //This string will hold the asm commmands that are to be generated
   char *asm_commands = NULL;
   
   //Opening the asm file
@@ -124,13 +135,16 @@ void code_generator(char *command, char *vm_filename)
   
   if(t == 0) //a and l command
   {
-    asm_commands = code_generator_al(arg1);
+    asm_commands = code_generator_al(args[0]);
   }
   else if(t == 1) //push command
   {
-    asm_commands = code_generator_push(arg2, arg3);
+    asm_commands = code_generator_push(args[1], args[2], vm_filename);
   } 
-  else asm_commands = NULL;
+  else if(t == 2) // pop command
+  {
+    asm_commands = code_generator_pop(args[1], args[2], vm_filename);
+  }
   
   if(asm_commands == NULL)
   {
@@ -150,47 +164,66 @@ void code_generator(char *command, char *vm_filename)
   fclose(asm_file);
 }
 
-char *code_generator_push(char *arg2, char *arg3)
+char *code_generator_push(char *arg2, char *arg3, char *vm_filename)
 {
   int t_push = typeof_pushpop(arg2);
+  
   if(t_push == -1)
   {
     printf("Invalid push command.\n");
     return NULL;
   }
+  
+  char *s = (char *)malloc(sizeof(char) * 100);
+
+  //Setting the register that will be used
+  char *reg = set_register(t_push, arg3);
 
   if(t_push == 0) //const
   {
-    char *s = (char *)malloc(sizeof(char) * 50);
-    strcpy(s,"@");
-    strcat(s,arg3);
-    strcat(s,"\nD=A\n@SP\nA=M\nM=D\n@SP\nM=M+1\n");
+    strcpy(s, "@");
+    strcat(s, arg3);
+    strcat(s, "\nD=A\n@SP\nA=M\nM=D\n@SP\nM=M+1\n");
     return s;
   }
   else if(t_push == 3) // static
   {
-    //TODO
-    return NULL;
+    strcpy(s, "@");
+    strcat(s, vm_filename);
+    strcat(s, ".");
+    strcat(s, arg3);
+    strcat(s, "\nD=M\n@SP\nA=M\nM=D\n@SP\nM=M+1\n");
+    return s;
   }
-  else if(t_push != -1)//lcl, arg, temp, pointer, this and that
+  else if(t_push == 5) // pointer
   {
-    char *s = (char *)malloc(sizeof(char) * 100);
+    strcpy(s, "@");
+    strcat(s, reg);
+    strcat(s, "\nD=M\n@SP\nA=M\nM=D\n@SP\nM=M+1\n");
 
-    //Setting the register that will be used
-    char *reg = set_register(t_push, arg3);
+    free(reg);
+    return s;
+  }
+  else if(t_push != -1)//lcl, arg, temp, this and that
+  {
+
     
     strcpy(s, "@");
     strcat(s, arg3);
     strcat(s, "\nD=A\n@");
     strcat(s, reg);
-    strcat(s, "\nD=D+M\n@addr\nM=D\n@addr\nA=M\nD=M\n@SP\nA=M\nM=D\n@SP\nM=M+1\n");
+    if(t_push == 4) //temp works slightly differently
+      strcat(s, "\nD=D+A\n");
+    else strcat(s, "\nD=D+M\n");
+    strcat(s, "@addr\nM=D\nA=M\nD=M\n@SP\nA=M\nM=D\n@SP\nM=M+1\n");
+
     free(reg);
     return s;
   }
   else return NULL;
 }
 
-char *code_generator_pop(char *arg2, char *arg3)
+char *code_generator_pop(char *arg2, char *arg3, char *vm_filename)
 {
   int t_pop = typeof_pushpop(arg2);
 
@@ -200,19 +233,41 @@ char *code_generator_pop(char *arg2, char *arg3)
     return NULL;
   }
 
+  //The string that holds the asm commands
+  char *s = (char *)malloc(sizeof(char) * 100);
+    
+  //setting the register that will be used
+  char *reg = set_register(t_pop, arg3);
+
   if(t_pop == 3) //static
   {
-    //TODO
-    return NULL;
+    strcpy(s, "@SP\nM=M-1\nA=M\nD=M\n@");
+    strcat(s, vm_filename);
+    strcat(s, ".");
+    strcat(s, arg3);
+    strcat(s, "\nM=D\n");
+    return s;
   }
-  else if(t_pop != -1) //lcl, arg, temp, pointer, this & that
-  {
-    char *s = (char *)malloc(sizeof(char) * 100);
-    
-    //setting the register that will be used
-    char *reg = set_register(t_pop, arg3);    
+  else if(t_pop == 5) //pointer
+  {   
+    strcpy(s, "@SP\nM=M-1\nA=M\nD=M\n@");
+    strcat(s, reg);
+    strcat(s, "\nM=D\n");
 
-    //TODO
+    free(reg);
+    return s;
+  }
+
+  else if(t_pop != -1) //lcl, arg, pointer, this & that
+  {
+    strcpy(s, "@");
+    strcat(s, arg3);
+    strcat(s, "\nD=A\n@");
+    strcat(s, reg);
+    if(t_pop == 4) //temp works slightly differently
+      strcat(s, "\nD=D+A\n");
+    else strcat(s, "\nD=D+M\n");
+    strcat(s, "@addr\nM=D\n@SP\nM=M-1\nA=M\nD=M\n@addr\nA=M\nM=D\n");
     free(reg);
     return s;
   }

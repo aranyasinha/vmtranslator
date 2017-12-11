@@ -10,7 +10,7 @@ int main(int argc, char *argv[])
 {
   if(argc != 2)
   {
-    printf("Usage: vmtranslator /path/to/file_name.vm");
+    printf("Usage: vmtranslator /path/to/file_name.vm\n");
     return 1;
   }
 
@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
     return 2;
   }
   
-  //Tracks the command number
+  //Tracking the command number
   int n = 1;
   
   //Looping through the vm file
@@ -43,8 +43,8 @@ int main(int argc, char *argv[])
       free(command);
       continue;
     }
-    printf("%d %s", n, command);
-    //generates and appends assembly code.
+    fprintf(stdout, "%d %s", n, command);
+    //generating and appending assembly code.
     code_generator(command, argv[1]);
     
     free(command);
