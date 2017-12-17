@@ -116,6 +116,7 @@ void code_generator(char *command, char *vm_filename)
     }
     else args[cnt][j++] = command[i];
   }
+  
   //Determining the type of vm command
   int t = type_of(args[0], args[1], args[2]);
   if(t == -1)

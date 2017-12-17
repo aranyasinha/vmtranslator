@@ -1,24 +1,40 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 #include <ctype.h>
+#include <dirent.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
 
 #include "helpers.h"
 #define LINE_SIZE 200
+
+int translate_file(char *vm_filename);
+int translate_directory(char *directoryname);
 
 int main(int argc, char *argv[])
 {
   if(argc != 2)
   {
-    printf("Usage: vmtranslator /path/to/file_name.vm\n");
+    fprintf(stderr, "Usage: vmtranslator /path/to/file_name.vm OR\
+                     vmtranslator /path/to/directory\n");
     return 1;
   }
+  
+  if(strstr(argv[1], ".vm") != NULL)
+    translate_file(argv[1]);
+  else translate_directory(argv[1]);
 
+return 0;
+}
+
+int translate_file(char *vm_filename)
+{
   //Opening the vm file
-  FILE *vm_file = fopen(argv[1], "r");
+  FILE *vm_file = fopen(vm_filename, "r");
+  
   if(vm_file == NULL)
   {
-    printf("File not found.\n");
+    fprintf(stderr, "Error: File not found.\n");
     return 2;
   }
   
@@ -31,9 +47,10 @@ int main(int argc, char *argv[])
     //reading the current command from the vm file
     char *command = (char *)malloc(sizeof(char) * LINE_SIZE);
     fgets(command, LINE_SIZE, vm_file);
+    
     if(command == NULL)
     {
-      printf("File I/O error.\n");
+      fprintf(stderr, "Error: Could not read from file.\n");
       return 3;
     }
     
@@ -43,15 +60,36 @@ int main(int argc, char *argv[])
       free(command);
       continue;
     }
+
     fprintf(stdout, "%d %s", n, command);
+  
     //generating and appending assembly code.
-    code_generator(command, argv[1]);
+    code_generator(command, vm_filename);
     
     free(command);
     n++;
   }
 
   fclose(vm_file);
-  printf( "File translation completed.\n");
+  return 0;
+}
+
+int translate_directory(char *directoryname)
+{
+  DIR *dir = opendir(directoryname);
+  struct dirent *entry_pointer;
+
+  if(dir == NULL)
+  {
+    fprintf(stderr, "Error: Could not open directory\n");
+    return 4;
+  }
+
+  while((entry_pointer = readdir(dir) ))
+  {
+    if(entry_pointer->d_type == DT_REG && 
+       strstr(entry_pointer->d_name,".vm") != NULL)
+      translate_file(entry_pointer->d_name);
+  }
   return 0;
 }
