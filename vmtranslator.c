@@ -4,12 +4,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #include "helpers.h"
 #define LINE_SIZE 200
 
 int translate_file(char *vm_filename);
 int translate_directory(char *directoryname);
+void copy_file(char *dest, char *src);
 
 int main(int argc, char *argv[])
 {
@@ -77,6 +79,7 @@ int translate_file(char *vm_filename)
 
 int translate_directory(char *directoryname)
 {
+  //Opening the directory
   DIR *dir = opendir(directoryname);
   struct dirent *entry_pointer;
 
@@ -86,12 +89,49 @@ int translate_directory(char *directoryname)
     return 4;
   }
 
+  //getcwd() returns the full path
+  char cwd[1024];
+  if(getcwd(cwd, sizeof(cwd)) == NULL)
+  {
+    fprintf(stderr, "Error: Can't get current directory\n");
+    return 5;
+  }
+  
+  char *asm_filename = strrchr(cwd, '/');
+  asm_filename++; // /DirectoryName to DirectoryName
+  strcat(asm_filename, ".asm");
+
+  //Looking for .vm file, translating it, copying it to 
+  //the main .asm file and deleting it.
   while((entry_pointer = readdir(dir) ))
   {
     if(entry_pointer->d_type == DT_REG && 
        strstr(entry_pointer->d_name,".vm") != NULL)
+    {
       translate_file(entry_pointer->d_name);
+      char *translated_asm = (char *)malloc(sizeof(char) * 20);
+      strcpy(translated_asm, strtok(entry_pointer->d_name, "."));
+      strcat(translated_asm, ".asm");
+      copy_file(asm_filename, translated_asm);
+      remove(translated_asm);
+    }
   }
-  //TODO: combine all asm files into one file. Remove using remove().
+  
   return 0;
+}
+
+void copy_file(char *dest, char *src)
+{
+ FILE *dest_p, *src_p;
+
+ int a; //For copying
+
+ dest_p = fopen(dest, "a");
+ src_p = fopen(src, "r");
+
+ while( (a = fgetc(src_p)) != EOF)
+   fputc(a, dest_p);
+
+ fclose(dest_p);
+ fclose(src_p);
 }
