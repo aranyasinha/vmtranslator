@@ -10,12 +10,18 @@ int label_n = 0;
 int type_of(char *arg1, char *arg2, char *arg3)
 {
 
-  if(strcmp(arg2,"") == 0 && strcmp(arg3, "") == 0)
+  if(arg2 == NULL && arg3 == NULL)
     return 0;
   else if(strcmp(arg1, "push") == 0)
     return 1;
   else if(strcmp(arg1, "pop") == 0)
     return 2;
+  else if(strcmp(arg1, "label") == 0)
+    return 3;
+  else if(strcmp(arg1, "goto") == 0)
+    return 4;
+  else if(strcmp(arg1, "if-goto") == 0)
+    return 5;
   return -1;
 
 }
@@ -68,7 +74,8 @@ int typeof_al(char *arg1)
 
 char *set_register(int t, char *arg3)
 {
-  char *reg = (char *)malloc(sizeof(char) * 5);
+  char *reg = (char *)malloc(sizeof(char *) * 5);
+
   if(t == 1)
     strcpy(reg, "LCL");
   else if(t == 2)
@@ -97,31 +104,19 @@ char *set_register(int t, char *arg3)
 
 void code_generator(char *command, char *vm_filename)
 {
+  char command_copy[strlen(command) + 1];
+  strcpy(command_copy, command);
+  char *saveptr;
   //Getting the three arguments from the vm command
-  char args[3][10];
-  strcpy(args[0], "");
-  strcpy(args[1], "");
-  strcpy(args[2], "");
+  char *arg1 = strtok_r(command_copy, " \n", &saveptr);
+  char *arg2 = strtok_r(NULL, " \n", &saveptr);
+  char *arg3 = strtok_r(NULL, " \n", &saveptr);
 
-  int j = 0, cnt = 0;
-  for(int i = 0; i <= (int)strlen(command); i++)
-  {
-    if(command[i] == ' '|| command[i] == '\n')
-    {
-      args[cnt][j] = '\0';
-      if(command[i] == '\n')
-        break;
-      cnt++;
-      j = 0;
-    }
-    else args[cnt][j++] = command[i];
-  }
-  
   //Determining the type of vm command
-  int t = type_of(args[0], args[1], args[2]);
+  int t = type_of(arg1, arg2, arg3);
   if(t == -1)
   {
-    printf("Invalid command type.\n");
+    fprintf(stderr, "Error: Invalid command type.\n");
     return;
   }
 
@@ -134,19 +129,33 @@ void code_generator(char *command, char *vm_filename)
   strcat(asm_filename, ".asm");
   FILE *asm_file = fopen(asm_filename, "a");
   
-  if(t == 0) //a and l command
+  switch(t)
   {
-    asm_commands = code_generator_al(args[0]);
+    case 0: //a and l command
+    asm_commands = code_generator_al(arg1);
+    break;
+
+    case 1: //push command
+    asm_commands = code_generator_push(arg2, arg3, vm_filename);
+    break;
+
+    case 2: //pop command
+    asm_commands = code_generator_pop(arg2, arg3, vm_filename);
+    break;
+
+    case 3: //label command
+    asm_commands = code_generator_label(arg2);
+    break;
+
+    case 4: //goto command
+    asm_commands = code_generator_goto(arg2);
+    break;
+
+    case 5: //if-goto command
+    asm_commands = code_generator_ifgoto(arg2);
+    break;
   }
-  else if(t == 1) //push command
-  {
-    asm_commands = code_generator_push(args[1], args[2], vm_filename);
-  } 
-  else if(t == 2) // pop command
-  {
-    asm_commands = code_generator_pop(args[1], args[2], vm_filename);
-  }
-  
+
   if(asm_commands == NULL)
   {
     free(asm_filename);
@@ -177,9 +186,6 @@ char *code_generator_push(char *arg2, char *arg3, char *vm_filename)
   
   char *s = (char *)malloc(sizeof(char) * 100);
 
-  //Setting the register that will be used
-  char *reg = set_register(t_push, arg3);
-
   if(t_push == 0) //const
   {
     strcpy(s, "@");
@@ -198,6 +204,9 @@ char *code_generator_push(char *arg2, char *arg3, char *vm_filename)
   }
   else if(t_push == 5) // pointer
   {
+    //Setting the register that will be used
+    char *reg = set_register(t_push, arg3);
+
     strcpy(s, "@");
     strcat(s, reg);
     strcat(s, "\nD=M\n@SP\nA=M\nM=D\n@SP\nM=M+1\n");
@@ -208,7 +217,8 @@ char *code_generator_push(char *arg2, char *arg3, char *vm_filename)
   else if(t_push != -1)//lcl, arg, temp, this and that
   {
 
-    
+    //Setting the register that will be used
+    char *reg = set_register(t_push, arg3);
     strcpy(s, "@");
     strcat(s, arg3);
     strcat(s, "\nD=A\n@");
@@ -237,9 +247,7 @@ char *code_generator_pop(char *arg2, char *arg3, char *vm_filename)
   //The string that holds the asm commands
   char *s = (char *)malloc(sizeof(char) * 100);
     
-  //setting the register that will be used
-  char *reg = set_register(t_pop, arg3);
-
+  
   if(t_pop == 3) //static
   {
     strcpy(s, "@SP\nM=M-1\nA=M\nD=M\n@");
@@ -251,6 +259,9 @@ char *code_generator_pop(char *arg2, char *arg3, char *vm_filename)
   }
   else if(t_pop == 5) //pointer
   {   
+    //Setting the register that will be used
+    char *reg = set_register(t_pop, arg3);
+    
     strcpy(s, "@SP\nM=M-1\nA=M\nD=M\n@");
     strcat(s, reg);
     strcat(s, "\nM=D\n");
@@ -261,6 +272,9 @@ char *code_generator_pop(char *arg2, char *arg3, char *vm_filename)
 
   else if(t_pop != -1) //lcl, arg, pointer, this & that
   {
+    //Setting the register that will be used
+    char *reg = set_register(t_pop, arg3);
+    
     strcpy(s, "@");
     strcat(s, arg3);
     strcat(s, "\nD=A\n@");
@@ -349,4 +363,37 @@ char *code_generator_al(char *arg1)
   }
 
   return NULL; 
+}
+
+char *code_generator_label(char *arg2)
+{
+  char *s = (char *)malloc(sizeof(char) * 20);
+  
+  strcpy(s, "(");
+  strcat(s, arg2);
+  strcat(s, ")\n");
+
+  return s;
+}
+
+char *code_generator_goto(char *arg2)
+{
+  char *s = (char *)malloc(sizeof(char) * 50);
+
+  strcpy(s, "@");
+  strcat(s, arg2);
+  strcat(s, "\n0;JMP\n");
+
+  return s;
+}
+
+char *code_generator_ifgoto(char *arg2)
+{
+  char *s = (char *)malloc(sizeof(char) * 50);
+  
+  strcpy(s, "@SP\nM=M-1\nA=M\nD=M\n@");
+  strcat(s, arg2);
+  strcat(s, "\nD;JGT\nD;JLT\n");
+
+  return s;
 }

@@ -45,7 +45,7 @@ int translate_file(char *vm_filename)
   while(!feof(vm_file))
   {
     //reading the current command from the vm file
-    char *command = (char *)malloc(sizeof(char) * LINE_SIZE);
+    char *command = (char *)malloc(sizeof(char *) * LINE_SIZE);
     fgets(command, LINE_SIZE, vm_file);
     
     if(command == NULL)
@@ -66,7 +66,8 @@ int translate_file(char *vm_filename)
     //generating and appending assembly code.
     code_generator(command, vm_filename);
     
-    free(command);
+    if(command != NULL)
+      free(command);
     n++;
   }
 
@@ -91,5 +92,6 @@ int translate_directory(char *directoryname)
        strstr(entry_pointer->d_name,".vm") != NULL)
       translate_file(entry_pointer->d_name);
   }
+  //TODO: combine all asm files into one file. Remove using remove().
   return 0;
 }
