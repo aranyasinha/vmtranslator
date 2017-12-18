@@ -4,4 +4,4 @@ Converts .vm files to .asm <br />
 ## Compile
 ```gcc main.c helpers.c helpers.h -o vmtranslator```
 ## Run
-```vmtranslator file_name.vm```
+```vmtranslator file_name.vm``` OR ```vmtranslator directory```

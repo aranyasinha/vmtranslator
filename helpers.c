@@ -120,7 +120,7 @@ void code_generator(char *command, char *vm_filename)
     return;
   }
 
-  //This string will hold the asm commmands that are to be generated
+  //This string will hold the asm commands that are to be generated
   char *asm_commands = NULL;
   
   //Opening the asm file
