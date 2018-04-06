@@ -124,7 +124,7 @@ void code_generator(char *command, char *vm_filename)
   char *asm_commands = NULL;
   
   //Opening the asm file
-  char *asm_filename = (char *)malloc(sizeof(char) * 20);
+  char *asm_filename = (char *)malloc(sizeof(char) * 128);
   strcpy(asm_filename, strtok(vm_filename, "."));
   strcat(asm_filename, ".asm");
   FILE *asm_file = fopen(asm_filename, "a");
@@ -245,7 +245,7 @@ char *code_generator_pop(char *arg2, char *arg3, char *vm_filename)
   }
 
   //The string that holds the asm commands
-  char *s = (char *)malloc(sizeof(char) * 100);
+  char *s = (char *)malloc(sizeof(char) * 200);
     
   
   if(t_pop == 3) //static
@@ -318,7 +318,7 @@ char *code_generator_al(char *arg1)
 
   if(t_al == 0 || t_al == 1 || t_al == 6 || t_al == 7)//add, sub, and, or
   {
-    s = (char *)malloc(sizeof(char) * 50);
+    s = (char *)malloc(sizeof(char) * 100);
     strcpy(s, "@SP\nAM=M-1\nD=M\n@SP\nAM=M-1\nM=M");
     strcat(s, op);
     strcat(s, "D\n@SP\nM=M+1\n");
@@ -327,7 +327,7 @@ char *code_generator_al(char *arg1)
   else if (t_al == 2 || t_al == 8)//neg, not
   {
     
-    s = (char *)malloc(sizeof(char) * 50);
+    s = (char *)malloc(sizeof(char) * 100);
     strcpy(s, "@SP\nAM=M-1\nM=");
     strcat(s, op);
     strcat(s, "M\n@SP\nM=M+1\n");
@@ -367,7 +367,7 @@ char *code_generator_al(char *arg1)
 
 char *code_generator_label(char *arg2)
 {
-  char *s = (char *)malloc(sizeof(char) * 20);
+  char *s = (char *)malloc(sizeof(char) * 100);
   
   strcpy(s, "(");
   strcat(s, arg2);
@@ -378,7 +378,7 @@ char *code_generator_label(char *arg2)
 
 char *code_generator_goto(char *arg2)
 {
-  char *s = (char *)malloc(sizeof(char) * 50);
+  char *s = (char *)malloc(sizeof(char) * 100);
 
   strcpy(s, "@");
   strcat(s, arg2);
@@ -389,7 +389,7 @@ char *code_generator_goto(char *arg2)
 
 char *code_generator_ifgoto(char *arg2)
 {
-  char *s = (char *)malloc(sizeof(char) * 50);
+  char *s = (char *)malloc(sizeof(char) * 100);
   
   strcpy(s, "@SP\nM=M-1\nA=M\nD=M\n@");
   strcat(s, arg2);

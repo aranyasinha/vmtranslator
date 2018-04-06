@@ -1,3 +1,4 @@
 *.vm
 *.asm
-vmtranslator
+*.zip
+VMTranslator

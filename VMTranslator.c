@@ -17,8 +17,7 @@ int main(int argc, char *argv[])
 {
   if(argc != 2)
   {
-    fprintf(stderr, "Usage: vmtranslator /path/to/file_name.vm OR\
-                     vmtranslator /path/to/directory\n");
+    fprintf(stderr, "Usage: vmtranslator /path/to/file_name.vm OR vmtranslator /path/to/directory\n");
     return 1;
   }
   
@@ -47,7 +46,7 @@ int translate_file(char *vm_filename)
   while(!feof(vm_file))
   {
     //reading the current command from the vm file
-    char *command = (char *)malloc(sizeof(char *) * LINE_SIZE);
+    char *command = (char *)calloc(LINE_SIZE, sizeof(char *) * LINE_SIZE);
     fgets(command, LINE_SIZE, vm_file);
     
     if(command == NULL)
@@ -66,6 +65,11 @@ int translate_file(char *vm_filename)
     fprintf(stdout, "%d %s", n, command);
   
     //generating and appending assembly code.
+    if(strchr(vm_filename, '/') != NULL)
+    {
+      vm_filename = strrchr(vm_filename, '/');
+      vm_filename++; // /FileName to FileName     
+    }
     code_generator(command, vm_filename);
     
     if(command != NULL)
@@ -97,6 +101,8 @@ int translate_directory(char *directoryname)
     return 5;
   }
   
+  //cwd is in the form of /full/path/to/directory
+  //asm_filename needs to be of the form 'directory_name'
   char *asm_filename = strrchr(cwd, '/');
   asm_filename++; // /DirectoryName to DirectoryName
   strcat(asm_filename, ".asm");
@@ -109,29 +115,39 @@ int translate_directory(char *directoryname)
        strstr(entry_pointer->d_name,".vm") != NULL)
     {
       translate_file(entry_pointer->d_name);
-      char *translated_asm = (char *)malloc(sizeof(char) * 20);
+      char *translated_asm = (char *)calloc(128, sizeof(char) * 128);
       strcpy(translated_asm, strtok(entry_pointer->d_name, "."));
       strcat(translated_asm, ".asm");
-      copy_file(asm_filename, translated_asm);
-      remove(translated_asm);
+
+      //copy and delete only if there are two different files
+      if(strcmp(asm_filename, translated_asm) != 0)
+      {
+        copy_file(asm_filename, translated_asm);
+        remove(translated_asm);
+      }
+
+      if(translated_asm != NULL)
+        free(translated_asm);
     }
   }
   
+  closedir(dir);
+
   return 0;
 }
 
 void copy_file(char *dest, char *src)
 {
- FILE *dest_p, *src_p;
+  FILE *dest_p, *src_p;
 
- int a; //For copying
+  int a; //For copying
 
- dest_p = fopen(dest, "a");
- src_p = fopen(src, "r");
+  dest_p = fopen(dest, "a");
+  src_p = fopen(src, "r");
 
- while( (a = fgetc(src_p)) != EOF)
-   fputc(a, dest_p);
+  while( (a = fgetc(src_p)) != EOF)
+    fputc(a, dest_p);
 
- fclose(dest_p);
- fclose(src_p);
+  fclose(dest_p);
+  fclose(src_p);
 }
